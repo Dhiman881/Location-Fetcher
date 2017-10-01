@@ -19,6 +19,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
@@ -71,6 +72,9 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar mProgressbar;
     private BroadcastReceiver broadcastReceiver;
     private Button btnSOS;
+    private String lat;
+    private String lon;
+    private String addressDetail;
     private static final String URL_POST = "https://www.Doorhopper.in/JUNK";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +86,9 @@ public class MainActivity extends AppCompatActivity {
         address =(TextView)findViewById(R.id.textView3);
         btnSOS = (Button)findViewById(R.id.sos_btn);
         mProgressbar = (ProgressBar)findViewById(R.id.progressBar1);
+        lat="0.0";
+        lon="0.0";
+        addressDetail="";
         if (!runtime_permissions())
             enable_buttons();
         lm = (LocationManager)getSystemService(LOCATION_SERVICE);
@@ -122,9 +129,13 @@ public class MainActivity extends AppCompatActivity {
                             String str = intent.getExtras().get("Address").toString();
                             if(!TextUtils.isEmpty(str)){
                                 address.setText("Address"+"\n"+str);
+                                addressDetail=str;
                             }
                         }
-
+                        if(intent.getExtras().containsKey("latitude"))
+                            lat=intent.getExtras().get("latitude").toString();
+                        if(intent.getExtras().containsKey("longitude"))
+                            lon=intent.getExtras().get("longitude").toString();
 
                     }
                     if(intent.getExtras().containsKey("enable gps"))
@@ -141,36 +152,42 @@ public class MainActivity extends AppCompatActivity {
     private void sendSOS(){
 
 
-        JSONObject jsonObject = new JSONObject();
+        JSONObject locObj = new JSONObject();
         try {
             // user_id, comment_id,status
-            jsonObject.put("token","YOBHATT" );
-            jsonObject.put("data","location");
-            jsonObject.put("value","SOS");
+            locObj.put("latitude", lat);
+            locObj.put("longitude", lon);
+            locObj.put("address",addressDetail);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.POST,
-                URL_POST, jsonObject,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-
-                        //  YOUR RESPONSE
-                        Toast.makeText(MainActivity.this,"SOS Sent",Toast.LENGTH_SHORT).show();
-                    }
-                }, new Response.ErrorListener() {
+        final String value_String =locObj.toString();
+        // Log.v("Location Value",value_String);
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URL_POST, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                //Log.v("Response",response);
+                Toast.makeText(MainActivity.this,"SOS Sent",Toast.LENGTH_SHORT).show();
+            }
+        }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Toast.makeText(MainActivity.this,"Unable to Send SOS",Toast.LENGTH_SHORT).show();
-                error.printStackTrace();
-
             }
-        });
-        RequestQueue mRequestQueue = Volley.newRequestQueue(this);
-        mRequestQueue.add(jsonObjReq);
+        }){
+            protected Map<String,String> getParams() throws AuthFailureError{
+                Map<String,String> params = new HashMap<String, String>();
+                params.put("token","YOBHATT");
+                params.put("data","SOS");
+                params.put("value",value_String);
+                 Log.v("Location Value_Param",params.get("value").toString());
+                return params;
+            }
+        };
+        RequestQueue requestQueue = Volley.newRequestQueue(this);
+        requestQueue.add(stringRequest);
     }
 
     protected void onDestroy() {

@@ -22,6 +22,7 @@ import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
+import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.StringDef;
@@ -94,6 +95,11 @@ public class Gp_service extends Service implements GoogleApiClient.ConnectionCal
         return null;
     }
 
+    @Override
+    public int onStartCommand(Intent intent,  int flags, int startId) {
+        return super.onStartCommand(intent, flags, startId);
+    }
+
     public void onCreate() {
         context =Gp_service.this;
         buildGoogleApiClient();
@@ -103,7 +109,6 @@ public class Gp_service extends Service implements GoogleApiClient.ConnectionCal
         if (!mGoogleApiClient.isConnected()) {
             mGoogleApiClient.connect();
         }
-
            mHandler = new Handler();
             runnableCode = new Runnable() {
                 @Override
@@ -142,7 +147,7 @@ public class Gp_service extends Service implements GoogleApiClient.ConnectionCal
     }
 
     private void startSendindData() {
-        Map<String,String> locObj = new HashMap<String, String>();
+        JSONObject locObj = new JSONObject();
         try {
             // user_id, comment_id,status
             locObj.put("latitude", String.valueOf(lat));
@@ -153,38 +158,31 @@ public class Gp_service extends Service implements GoogleApiClient.ConnectionCal
             e.printStackTrace();
         }
 
-        JSONObject jsonObject = new JSONObject();
-        try {
-            // user_id, comment_id,status
-            jsonObject.put("token","YOBHATT" );
-            jsonObject.put("data","location");
-            jsonObject.put("value",new JSONObject(locObj){
-
-            });
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        JsonObjectRequest jsonObjReq = new JsonObjectRequest(Request.Method.POST,
-                URL_POST, jsonObject,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-
-                        //  YOUR RESPONSE
-                        Toast.makeText(Gp_service.this,"Data Sent",Toast.LENGTH_SHORT).show();
-                    }
-                }, new Response.ErrorListener() {
+        final String value_String =locObj.toString();
+       // Log.v("Location Value",value_String);
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URL_POST, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                Log.v("Response",response);
+                Toast.makeText(Gp_service.this,"Data Sent",Toast.LENGTH_SHORT).show();
+            }
+        }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
                 Toast.makeText(Gp_service.this,"Unable to Send Data",Toast.LENGTH_SHORT).show();
-                error.printStackTrace();
-
             }
-        });
-        RequestQueue mRequestQueue = Volley.newRequestQueue(this);
-        mRequestQueue.add(jsonObjReq);
+        }){
+            protected Map<String,String> getParams() throws AuthFailureError{
+                Map<String,String> params = new HashMap<String, String>();
+                params.put("token","YOBHATT");
+                params.put("data","location");
+                params.put("value",value_String);
+               // Log.v("Location Value_Param",params.get("value").toString());
+                return params;
+            }
+        };
+        RequestQueue requestQueue = Volley.newRequestQueue(this);
+        requestQueue.add(stringRequest);
     }
 
     public void onConnected(@Nullable Bundle bundle) {
@@ -287,6 +285,8 @@ public class Gp_service extends Service implements GoogleApiClient.ConnectionCal
             i.putExtra("Address", addresses.get(0).getAddressLine(0)+","+addresses.get(0).getSubLocality()+","+addresses.get(0).getLocality()+","+ addresses.get(0).getPostalCode() +","+addresses.get(0).getAdminArea()+","+addresses.get(0).getCountryName());
             }
         i.putExtra("coordinates","Latitude : "+lat+"\n"+"Longitude : "+lon);
+        i.putExtra("latitude",lat);
+        i.putExtra("longitude",lon);
         sendBroadcast(i);
 
     }
